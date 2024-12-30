@@ -1,0 +1,54 @@
+
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: Marjia
+      POSTGRES_PASSWORD: Marjia029
+      POSTGRES_DB: new_django_db  # New database for the Django app
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - new_network  # Use internal network for communication with Django and Ollama
+      - scraping_hotel_network
+
+  django:
+    build:
+      context: ./
+    volumes:
+      - ./:/app
+    working_dir: /app
+    depends_on:
+      - db
+      - ollama  # Ensure Ollama service is available before Django starts
+    networks:
+      - scraping_hotel_network  # Use external network to communicate with trip DB
+      - new_network  # Use internal network to communicate with Ollama and the DB
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRESQL_NEW_URI=postgresql://Marjia:Marjia029@db:5432/new_django_db  # New DB for Django
+      - DJANGO_SETTINGS_MODULE=ollamaproject.settings
+      - OLLAMA_API_URL=http://ollama:5000  # Connect Django to Ollama API
+      - POSTGRESQL_URI=postgresql://Marjia:Marjia029@db:5432/trip
+    command: python manage.py runserver 0.0.0.0:8000
+
+  ollama:
+    image: ollama/ollama:latest  # You may need to use the specific image for Ollama
+    networks:
+      - new_network  # Use internal network
+      - scraping_hotel_network  # Use external network to communicate with Django and the DB
+    ports:
+      - "11432:11432"  # Expose Ollama API on port 5000
+    command: serve  # Start Ollama's API server
+
+volumes:
+  postgres_data:
+
+networks:
+  scraping_hotel_network:
+    external: true  # Use external hotel_network to communicate with the trip DB
+
+  new_network:
+    driver: bridge  # Internal network for this project

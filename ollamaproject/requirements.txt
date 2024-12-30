@@ -1,0 +1,6 @@
+Django>=4.0,<5.0
+psycopg2-binary
+django-environ  # Optional, for managing environment variables
+gunicorn         # For running the application in production
+requests==2.28.1  # or any version you prefer
+
