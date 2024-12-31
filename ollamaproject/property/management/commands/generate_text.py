@@ -1,20 +1,21 @@
-# yourapp/management/commands/generate_text.py
-
 import google.generativeai as genai
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.core.management import CommandError
 
+
 class Command(BaseCommand):
     help = 'Generate text using Google Gemini AI model'
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            '--prompt',
-            type=str,
-            required=True,
-            help='The prompt for text generation'
-        )
+        help = 'Generate text using Google Gemini AI model'
+        # Remove the '--api-key' argument to make it hardcoded or ask interactively
+        # parser.add_argument(
+        #     '--prompt',
+        #     type=str,
+        #     help='The prompt for text generation',
+        #     default="Write a short story about a magical library"  # Default prompt
+        # )
         parser.add_argument(
             '--max-tokens',
             type=int,
@@ -27,17 +28,13 @@ class Command(BaseCommand):
             default=0.7,
             help='Temperature for text generation (0.0 to 1.0)'
         )
-        parser.add_argument(
-            '--api-key',
-            type=str,
-            required=True,
-            help='Google API key'
-        )
 
-    def setup_model(self, api_key):
+    def setup_model(self):
         """Configure and return the Gemini model"""
         try:
-            genai.configure(api_key="AIzaSyBsiGjUOf5qbyylbqiYDokWhrGAlqpz7cw")
+            # Use the hardcoded API key
+            api_key = "AIzaSyBsiGjUOf5qbyylbqiYDokWhrGAlqpz7cw"
+            genai.configure(api_key=api_key)
             return genai.GenerativeModel('gemini-2.0-flash-exp')
         except Exception as e:
             raise CommandError(f"Error setting up model: {str(e)}")
@@ -59,8 +56,10 @@ class Command(BaseCommand):
             raise CommandError(f"Error generating text: {str(e)}")
 
     def handle(self, *args, **options):
+
+        prompt = "What is the Capital of Bangladesh?"
         # Setup model
-        model = self.setup_model(options['api_key'])
+        model = self.setup_model()
 
         # Generate text
         self.stdout.write(self.style.SUCCESS('Generating text...'))
@@ -68,7 +67,7 @@ class Command(BaseCommand):
         
         response = self.generate_text(
             model,
-            options['prompt'],
+            prompt,
             options['max_tokens'],
             options['temperature']
         )
