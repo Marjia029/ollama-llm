@@ -13,7 +13,7 @@ class Command(BaseCommand):
     MAX_RETRIES = 3
     RETRY_DELAY = 60  # seconds to wait between retries
     BATCH_SIZE = 5
-    BATCH_DELAY = 10  # seconds to wait between batches
+    BATCH_DELAY = 60  # seconds to wait between batches
     
     # Prompt templates
     RATING_PROMPT_TEMPLATE = (
@@ -34,13 +34,26 @@ class Command(BaseCommand):
         "located in {location}. The hotel has the following details: \n"
         "- Hotel ID: {hotel_id}\n"
         "- Price: {price}\n"
-        "- Rating: {rating}\n"
+        "- Your Generated Rating: {generated_rating} out of 5\n"
         "- Address: {address}\n"
-        "- Coordinates: Latitude: {latitude}, Longitude: {longitude}\n"
         "- Room Type: {room_type}\n"
-        "Please generate a realistic and engaging review for this hotel based on the details above."
-        "Only give the review. Don't make it too large. limit it in 20 words."
+        "Please write a {sentiment} review that justifies the {generated_rating}/5 rating you gave. "
+        "The review should be realistic and engaging, matching the rating level. "
+        "Keep it concise, within 20 words. Only give the review text, no rating numbers."
     )
+
+    def get_review_sentiment(self, rating: float) -> str:
+        """Determine review sentiment based on rating"""
+        if rating >= 4.5:
+            return "very positive"
+        elif rating >= 4.0:
+            return "positive"
+        elif rating >= 3.0:
+            return "neutral to positive"
+        elif rating >= 2.0:
+            return "somewhat negative"
+        else:
+            return "negative"
 
     def setup_model(self, api_key: str) -> Any:
         """Configure and return the Gemini model"""
@@ -89,9 +102,9 @@ class Command(BaseCommand):
             'room_type': row[9] if row[9] else None,
         }
 
-    def format_prompt(self, template: str, hotel_data: dict) -> str:
-        """Format prompt template with hotel data"""
-        return template.format(
+    def format_rating_prompt(self, hotel_data: dict) -> str:
+        """Format rating prompt template with hotel data"""
+        return self.RATING_PROMPT_TEMPLATE.format(
             property_title=hotel_data['property_title'] or "No Title",
             location=hotel_data['location'] or "Unknown Location",
             hotel_id=hotel_data['hotel_id'],
@@ -103,21 +116,34 @@ class Command(BaseCommand):
             room_type=hotel_data['room_type'] or "No Room Type Provided"
         )
 
+    def format_review_prompt(self, hotel_data: dict, generated_rating: float) -> str:
+        """Format review prompt template with hotel data and generated rating"""
+        sentiment = self.get_review_sentiment(generated_rating)
+        return self.REVIEW_PROMPT_TEMPLATE.format(
+            property_title=hotel_data['property_title'] or "No Title",
+            location=hotel_data['location'] or "Unknown Location",
+            hotel_id=hotel_data['hotel_id'],
+            price=hotel_data['price'] if hotel_data['price'] else "Not Available",
+            generated_rating=generated_rating,
+            address=hotel_data['address'] or "No Address Provided",
+            room_type=hotel_data['room_type'] or "No Room Type Provided",
+            sentiment=sentiment
+        )
+
     def process_hotel(self, model: Any, hotel_data: dict) -> Optional[Tuple[str, str]]:
         """Process a single hotel and generate rating and review"""
         try:
-            # Prepare prompts
-            rating_prompt = self.format_prompt(self.RATING_PROMPT_TEMPLATE, hotel_data)
-            review_prompt = self.format_prompt(self.REVIEW_PROMPT_TEMPLATE, hotel_data)
-
-            # Generate rating and review
-            generated_rating = self.generate_text_with_retry(
+            # Generate rating first
+            rating_prompt = self.format_rating_prompt(hotel_data)
+            generated_rating = float(self.generate_text_with_retry(
                 model,
                 rating_prompt,
                 max_tokens=256,
                 temperature=0.7
-            )
+            ))
 
+            # Use the generated rating to inform the review
+            review_prompt = self.format_review_prompt(hotel_data, generated_rating)
             review = self.generate_text_with_retry(
                 model,
                 review_prompt,
@@ -125,7 +151,7 @@ class Command(BaseCommand):
                 temperature=0.7
             )
 
-            return generated_rating, review
+            return str(generated_rating), review
 
         except CommandError as e:
             self.stdout.write(self.style.ERROR(
