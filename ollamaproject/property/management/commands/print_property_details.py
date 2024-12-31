@@ -37,6 +37,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         try:
+
+            with connections['default'].cursor() as cursor:
+                # Truncate the RegeneratedPropertyTitle table and reset the ID counter
+                cursor.execute('TRUNCATE TABLE property_regeneratedpropertytitle RESTART IDENTITY CASCADE;')
+            
+            self.stdout.write(self.style.SUCCESS('Successfully truncated the table and reset IDs.'))
             # Connect to the trip_db and fetch the hotel data
             with connections['trip_db'].cursor() as cursor:
                 cursor.execute("SELECT * FROM hotels;")
