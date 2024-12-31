@@ -3,7 +3,6 @@ from django.core.management.base import BaseCommand
 from django.db import connections
 from time import sleep
 from django.core.management import CommandError
-from property.models import RegeneratedPropertyTitle
 
 class Command(BaseCommand):
     help = 'Fetch hotel data from trip_db and use Google Gemini API for title regeneration'
@@ -44,7 +43,7 @@ class Command(BaseCommand):
 
             # Hardcoded prompt for title regeneration with additional fields
             prompt_template = (
-                "Generate a catchy and SEO-friendly title for a hotel named '{property_title}' "
+                "Generate a catchy and SEO-friendly description for a hotel named '{property_title}' "
                 "located in {location}. The hotel has the following details: \n"
                 "- Hotel ID: {hotel_id}\n"
                 "- Price: {price}\n"
@@ -52,9 +51,8 @@ class Command(BaseCommand):
                 "- Address: {address}\n"
                 "- Coordinates: Latitude: {latitude}, Longitude: {longitude}\n"
                 "- Room Type: {room_type}\n"
-                "Please make the title creative, engaging, and SEO-friendly, "
-                "considering the amenities and features listed above."
-                "The title should be different from {property_title}. Only give me the new title. Gon't Give any option. Just create a new title and return it."
+                "Please make the description creative, engaging, and SEO-friendly, "
+                "considering the other attributes listed above. Please Don't make the description too large. Please Generare only one description."
             )
 
             # Initialize the model
@@ -87,7 +85,7 @@ class Command(BaseCommand):
                 )
 
                 # Generate text using the model
-                regenerated_title = self.generate_text(
+                description = self.generate_text(
                     model,
                     prompt,
                     max_tokens=256,
@@ -98,26 +96,23 @@ class Command(BaseCommand):
                 sleep(1)
 
                 # Save the regenerated title data to the database
-                regenerated_title_instance = RegeneratedPropertyTitle(
-                    hotel_id=hotel_id,
-                    location=location,
-                    original_title=property_title,
-                    regenerated_title=regenerated_title,
-                    price=price,
-                    rating=rating,
-                    address=address,
-                    latitude=latitude,
-                    longitude=longitude,
-                    room_type=room_type
-                )
-                regenerated_title_instance.save()
+                # regenerated_title_instance = RegeneratedPropertyTitle(
+                #     hotel_id=hotel_id,
+                #     location=location,
+                #     original_title=property_title,
+                #     regenerated_title=regenerated_title,
+                #     price=price,
+                #     rating=rating,
+                #     address=address,
+                #     latitude=latitude,
+                #     longitude=longitude,
+                #     room_type=room_type
+                # )
+                # regenerated_title_instance.save()
 
                 # Output the hotel info with regenerated title
                 self.stdout.write(self.style.SUCCESS(
-                    f"ID: {id}, Hotel ID: {hotel_id}, Original Title: {property_title}, "
-                    f"Generated Title: {regenerated_title}, Location: {location}, "
-                    f"Price: {price}, Rating: {rating}, Address: {address}, "
-                    f"Latitude: {latitude}, Longitude: {longitude}, Room Type: {room_type}"
+                    f"ID: {id}, Hotel ID: {hotel_id}, Description: {description}, "
                 ))
 
         except Exception as e:
