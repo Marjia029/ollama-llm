@@ -14,3 +14,11 @@ class DescriptionAdmin(admin.ModelAdmin):
 @admin.register(Summary)
 class DescriptionAdmin(admin.ModelAdmin):
     list_display = ('id', 'hotel_id', 'summary')
+
+
+@admin.register(RatingAndReview)
+class RatingAndReviewAdmin(admin.ModelAdmin):
+    list_display = ('id', 'hotel_id', 'rating', 'review')
+    list_filter = ('rating',)
+    search_fields = ('hotel_id', 'review')
+    ordering = ('id',)

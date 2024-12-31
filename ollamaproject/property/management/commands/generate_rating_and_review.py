@@ -5,16 +5,17 @@ from time import sleep
 import time
 from django.core.management import CommandError
 from typing import Optional, Tuple, Any
+from property.models import RatingAndReview
 
 class Command(BaseCommand):
     help = 'Fetch hotel data from trip_db and use Google Gemini API for generating hypothetical ratings and reviews'
     
     API_KEY = "AIzaSyBsiGjUOf5qbyylbqiYDokWhrGAlqpz7cw"
     MAX_RETRIES = 3
-    RETRY_DELAY = 60  # seconds to wait between retries
+    RETRY_DELAY = 60
     BATCH_SIZE = 5
-    BATCH_DELAY = 60  # seconds to wait between batches
-    
+    BATCH_DELAY = 10
+
     # Prompt templates
     RATING_PROMPT_TEMPLATE = (
         "Generate a hypothetical rating for a hotel named '{property_title}' "
@@ -42,19 +43,6 @@ class Command(BaseCommand):
         "Keep it concise, within 20 words. Only give the review text, no rating numbers."
     )
 
-    def get_review_sentiment(self, rating: float) -> str:
-        """Determine review sentiment based on rating"""
-        if rating >= 4.5:
-            return "very positive"
-        elif rating >= 4.0:
-            return "positive"
-        elif rating >= 3.0:
-            return "neutral to positive"
-        elif rating >= 2.0:
-            return "somewhat negative"
-        else:
-            return "negative"
-
     def setup_model(self, api_key: str) -> Any:
         """Configure and return the Gemini model"""
         try:
@@ -63,7 +51,7 @@ class Command(BaseCommand):
             return model
         except Exception as e:
             raise CommandError(f"Error setting up model: {str(e)}")
-    
+
     def generate_text_with_retry(self, model: Any, prompt: str, max_tokens: int, temperature: float) -> str:
         """Generate text using the Gemini model with retry logic"""
         for attempt in range(self.MAX_RETRIES):
@@ -86,6 +74,19 @@ class Command(BaseCommand):
                     time.sleep(self.RETRY_DELAY)
                     continue
                 raise CommandError(f"Error generating text: {str(e)}")
+
+    def get_review_sentiment(self, rating: float) -> str:
+        """Determine review sentiment based on rating"""
+        if rating >= 4.5:
+            return "very positive"
+        elif rating >= 4.0:
+            return "positive"
+        elif rating >= 3.0:
+            return "neutral to positive"
+        elif rating >= 2.0:
+            return "somewhat negative"
+        else:
+            return "negative"
 
     def prepare_hotel_data(self, row: Tuple) -> dict:
         """Extract and prepare hotel data from database row"""
@@ -159,6 +160,19 @@ class Command(BaseCommand):
             ))
             return None
 
+    def truncate_ratings_table(self) -> None:
+        """Truncate the ratings and reviews table and reset the ID sequence"""
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    TRUNCATE TABLE property_ratingandreview RESTART IDENTITY CASCADE;
+                """)
+            self.stdout.write(self.style.SUCCESS(
+                "Successfully truncated property_ratingandreview table and reset ID sequence."
+            ))
+        except Exception as e:
+            raise CommandError(f"Error truncating table: {str(e)}")
+
     def save_to_database(self, hotel_id: str, rating: float, review: str) -> None:
         """Save the generated rating and review to the database"""
         try:
@@ -166,17 +180,18 @@ class Command(BaseCommand):
                 cursor.execute(
                     """
                     INSERT INTO property_ratingandreview (hotel_id, rating, review)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT (hotel_id) 
-                    DO UPDATE SET rating = %s, review = %s;
+                    VALUES (%s, %s, %s);
                     """,
-                    [hotel_id, rating, review, rating, review]
+                    [hotel_id, rating, review]
                 )
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error saving to database: {str(e)}"))
 
     def handle(self, *args, **kwargs):
         try:
+            # First, truncate the table and reset ID sequence
+            self.truncate_ratings_table()
+
             # Initialize the model
             model = self.setup_model(self.API_KEY)
 
@@ -198,8 +213,12 @@ class Command(BaseCommand):
                     if result:
                         generated_rating, review = result
                         
-                        # Save to database if needed
-                        # self.save_to_database(hotel_data['hotel_id'], float(generated_rating), review)
+                        # Save to database
+                        self.save_to_database(
+                            hotel_data['hotel_id'], 
+                            float(generated_rating), 
+                            review
+                        )
                         
                         # Output results
                         self.stdout.write(self.style.SUCCESS(
@@ -209,9 +228,8 @@ class Command(BaseCommand):
                             f"Review: {review}"
                         ))
                         
-                        sleep(2)  # Small delay between individual requests
+                        sleep(2)
                 
-                # Delay between batches
                 if i + self.BATCH_SIZE < len(rows):
                     self.stdout.write(self.style.WARNING(
                         f"Processed batch of {self.BATCH_SIZE} hotels. "

@@ -34,3 +34,22 @@ class Summary(models.Model):
 
     def __str__(self):
         return f"Summary for Hotel ID: {self.hotel_id}"
+    
+
+class RatingAndReview(models.Model):
+    hotel_id = models.CharField(max_length=255, unique=True)
+    rating = models.FloatField()
+    review = models.TextField()
+
+    class Meta:
+        db_table = 'property_ratingandreview'
+        verbose_name = 'Rating and Review'
+        verbose_name_plural = 'Ratings and Reviews'
+
+    def __str__(self):
+        return f"Hotel {self.hotel_id} - Rating: {self.rating}"
+
+    def clean(self):
+        # Ensure rating is between 1 and 5
+        if self.rating < 1 or self.rating > 5:
+            raise models.ValidationError('Rating must be between 1 and 5')
