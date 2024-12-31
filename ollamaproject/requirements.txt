@@ -7,3 +7,4 @@ requests==2.32.3
 sqlparse==0.5.3
 urllib3==2.3.0
 psycopg2
+google-generativeai>=0.3.0
