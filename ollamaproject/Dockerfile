@@ -6,14 +6,18 @@ WORKDIR /app
 
 # Install system dependencies (for PostgreSQL, etc.)
 RUN apt-get update && apt-get install -y \
+    iputils-ping \
+    dnsutils \
+    net-tools \
     gcc \
     libpq-dev \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY requirements.txt /app/
-RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application files into the container
 COPY . /app/

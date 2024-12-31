@@ -63,3 +63,5 @@ settings_local.py
 
 # Local database files
 *.db
+ollamaproject/ollama/
+
