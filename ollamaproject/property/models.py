@@ -15,3 +15,22 @@ class RegeneratedPropertyTitle(models.Model):
 
     def __str__(self):
         return f"Regenerated Title for Hotel {self.hotel_id} - {self.regenerated_title}"
+    
+class Description(models.Model):
+    hotel_id = models.IntegerField()  # To associate the description with a specific hotel
+    description = models.TextField(blank=True, null=True)  # Optional field for the description
+
+    def __str__(self):
+        return f"Description for Hotel ID: {self.hotel_id}"
+    
+
+class Summary(models.Model):
+    hotel_id = models.IntegerField()  # To associate the description with a specific hotel
+    summary = models.TextField(blank=True, null=True)  # Optional field for the description
+
+    class Meta:
+        verbose_name = "Summary"  # Singular form of the model name
+        verbose_name_plural = "Summaries"  # Plural form of the model name
+
+    def __str__(self):
+        return f"Summary for Hotel ID: {self.hotel_id}"
