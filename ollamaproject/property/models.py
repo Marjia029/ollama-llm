@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
     
 class TitleAndDescription(models.Model):
     hotel_id = models.IntegerField()  # To associate the description with a specific hotel
@@ -27,7 +28,7 @@ class Summary(models.Model):
     
 
 class RatingAndReview(models.Model):
-    hotel_id = models.CharField(max_length=255, unique=True)
+    hotel_id = models.IntegerField(unique=True)
     rating = models.FloatField()
     review = models.TextField()
 
@@ -42,4 +43,4 @@ class RatingAndReview(models.Model):
     def clean(self):
         # Ensure rating is between 1 and 5
         if self.rating < 1 or self.rating > 5:
-            raise models.ValidationError('Rating must be between 1 and 5')
+            raise ValidationError('Rating must be between 1 and 5')
