@@ -1,0 +1,40 @@
+Found 6 test(s).
+Creating test database for alias 'default'...
+Creating test database for alias 'trip_db'...
+System check identified no issues (0 silenced).
+Successfully truncated the table and reset IDs.
+An error occurred: relation "hotels" does not exist
+LINE 1: SELECT * FROM hotels;
+                      ^
+
+FE....
+======================================================================
+ERROR: test_error_handling (property.tests.test_generate_title_and_description.GenerateTitleAndDescriptionCommandTests.test_error_handling)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/unittest/mock.py", line 1378, in patched
+    return func(*newargs, **newkeywargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/property/tests/test_generate_title_and_description.py", line 123, in test_error_handling
+    self.assertIn("Error", self.command.logger.error.call_args[0][0])
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'function' object has no attribute 'call_args'
+
+======================================================================
+FAIL: test_database_operations (property.tests.test_generate_title_and_description.GenerateTitleAndDescriptionCommandTests.test_database_operations)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/unittest/mock.py", line 1378, in patched
+    return func(*newargs, **newkeywargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/property/tests/test_generate_title_and_description.py", line 101, in test_database_operations
+    self.assertEqual(TitleAndDescription.objects.count(), 1)
+AssertionError: 0 != 1
+
+----------------------------------------------------------------------
+Ran 6 tests in 7.912s
+
+FAILED (failures=1, errors=1)
+Destroying test database for alias 'default'...
+Destroying test database for alias 'trip_db'...
+root@884d2686e2b6:/app# 
