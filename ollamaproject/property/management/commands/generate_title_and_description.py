@@ -3,15 +3,16 @@ from django.core.management.base import BaseCommand
 from django.db import connections
 from time import sleep
 from django.core.management import CommandError
-from property.models import Description
+from property.models import TitleAndDescription
 import random
 import logging
 from datetime import datetime, timedelta
+from config import GEMINI_API_KEY
 
 class Command(BaseCommand):
     help = 'Fetch hotel data from trip_db and use Google Gemini API for title and description regeneration'
     
-    API_KEY = "AIzaSyBsiGjUOf5qbyylbqiYDokWhrGAlqpz7cw"
+    # API_KEY = "AIzaSyBsiGjUOf5qbyylbqiYDokWhrGAlqpz7cw"
     
     def __init__(self):
         super().__init__()
@@ -83,7 +84,7 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         try:
             with connections['default'].cursor() as cursor:
-                cursor.execute('TRUNCATE TABLE property_description RESTART IDENTITY CASCADE;')
+                cursor.execute('TRUNCATE TABLE property_titleanddescription RESTART IDENTITY CASCADE;')
             
             self.stdout.write(self.style.SUCCESS('Successfully truncated the table and reset IDs.'))
 
@@ -119,7 +120,7 @@ class Command(BaseCommand):
                 "this hotel special. Don't mention the hotel ID in the description."
             )
 
-            model = self.setup_model(self.API_KEY)
+            model = self.setup_model(GEMINI_API_KEY)
             
             total_rows = len(rows)
             for index, row in enumerate(rows, 1):
@@ -173,7 +174,7 @@ class Command(BaseCommand):
                         temperature=0.7
                     )
 
-                    regenerated_title_instance = Description(
+                    regenerated_title_instance = TitleAndDescription(
                         hotel_id=hotel_id,
                         original_title=property_title,
                         regenerated_title=regenerated_title,
