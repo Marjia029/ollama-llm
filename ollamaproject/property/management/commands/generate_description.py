@@ -52,7 +52,7 @@ class Command(BaseCommand):
                 "- Coordinates: Latitude: {latitude}, Longitude: {longitude}\n"
                 "- Room Type: {room_type}\n"
                 "Please make the description creative, engaging, and SEO-friendly, "
-                "considering the other attributes listed above. Please Don't make the description too large. Please Generare only one description."
+                "considering the other attributes listed above. Please Don't make the description too large. Please Generare only one description. I don't want any option in description. only one description."
             )
 
             # Initialize the model

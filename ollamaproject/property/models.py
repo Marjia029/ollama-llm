@@ -18,6 +18,8 @@ class RegeneratedPropertyTitle(models.Model):
     
 class Description(models.Model):
     hotel_id = models.IntegerField()  # To associate the description with a specific hotel
+    original_title = models.TextField(blank=True, null=True) # To associate the description with a specific
+    regenerated_title = models.TextField(blank=True, null=True)  # To associate the description with a specific
     description = models.TextField(blank=True, null=True)  # Optional field for the description
 
     def __str__(self):

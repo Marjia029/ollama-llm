@@ -8,7 +8,7 @@ class RegeneratedPropertyTitleAdmin(admin.ModelAdmin):
 
 @admin.register(Description)
 class DescriptionAdmin(admin.ModelAdmin):
-    list_display = ('hotel_id', 'description')
+    list_display = ('id', 'hotel_id', 'original_title', 'regenerated_title', 'description')
 
 
 @admin.register(Summary)
