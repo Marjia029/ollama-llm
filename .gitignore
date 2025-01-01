@@ -64,4 +64,5 @@ settings_local.py
 # Local database files
 *.db
 ollamaproject/ollama/
+ollamaproject/generation_log.txt
 
