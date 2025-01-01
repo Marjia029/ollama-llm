@@ -1,6 +1,6 @@
 from django.test import TestCase
 from django.core.exceptions import ValidationError
-from .models import TitleAndDescription, Summary, RatingAndReview
+from property.models import TitleAndDescription, Summary, RatingAndReview
 
 class TitleAndDescriptionTests(TestCase):
     def setUp(self):
