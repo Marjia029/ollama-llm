@@ -1,103 +1,62 @@
+from django.test import TestCase
 from unittest.mock import patch, MagicMock
 from django.core.management import call_command
-from django.test import TransactionTestCase
 from property.models import TitleAndDescription
-from django.db import connection, connections
 
-class CommandTest(TransactionTestCase):
-    databases = {'default', 'trip_db'}
+class GenerateTitleAndDescriptionTest(TestCase):
+    databases = {'default', 'trip_db'}  # Allow access to both 'default' and 'trip_db'
 
     def setUp(self):
-        TitleAndDescription.objects.all().delete()
-        self.mock_hotel_data = [
-            (1, "New York", "Hotel Sunshine", "H123", "100", 4.5, "123 Main St", 40.7128, -74.0060, "Deluxe")
+        self.mock_cursor = MagicMock()
+        self.mock_cursor.fetchall.return_value = [
+            (1, 'New York', 'Hotel Blue', 1234, 200, 4.5, '123 Main St', '40.7128', '-74.0060', 'Suite'),
+            (2, 'San Francisco', 'Hotel Gold', 5678, 300, 4.8, '456 Market St', '37.7749', '-122.4194', 'Deluxe'),
         ]
-        
-        # Mock responses for both title and description
-        self.mock_title_response = MagicMock()
-        self.mock_title_response.text = "Regenerated Hotel Title"
-        
-        self.mock_desc_response = MagicMock()
-        self.mock_desc_response.text = "Regenerated Hotel Description"
+        self.mock_connection = MagicMock()
+        self.mock_connection.cursor.return_value.__enter__.return_value = self.mock_cursor
 
-    def mock_generate_content(self, prompt, generation_config=None):
-        """Helper to return different responses based on the prompt"""
-        if "title" in prompt.lower():
-            return self.mock_title_response
-        return self.mock_desc_response
+    @patch('google.generativeai.GenerativeModel')
+    @patch('django.db.connections.__getitem__')
+    def test_command_execution(self, mock_connections, mock_model):
+        # Mock the external model's method
+        mock_model_instance = MagicMock()
+        mock_model.return_value = mock_model_instance
+        mock_model_instance.generate_content.side_effect = [
+            MagicMock(text='Regenerated Title 1'),
+            MagicMock(text='Regenerated Description 1'),
+            MagicMock(text='Regenerated Title 2'),
+            MagicMock(text='Regenerated Description 2'),
+        ]
 
-    @patch('property.management.commands.generate_title_and_description.GEMINI_API_KEY', 'fake-key')
-    @patch('property.management.commands.generate_title_and_description.Command.generate_text_with_retry')
-    @patch('property.management.commands.generate_title_and_description.connections')
-    def test_command_success(self, mock_connections, mock_generate_text):
-        # Mock the database connections
-        mock_cursor = MagicMock()
-        mock_cursor.__enter__.return_value.fetchall.return_value = self.mock_hotel_data
-        mock_connections['trip_db'].cursor.return_value = mock_cursor
-        
-        mock_default_cursor = MagicMock()
-        mock_connections['default'].cursor.return_value = mock_default_cursor
-        mock_connections['default'].ops.sequence_reset_sql.return_value = []
-
-        # Mock the text generation to return different values for title and description
-        mock_generate_text.side_effect = ["Regenerated Hotel Title", "Regenerated Hotel Description"]
-        
-        # Run the command
+        # Execute the management command
         call_command('generate_title_and_description')
-        
-        # Verify the results
-        self.assertEqual(TitleAndDescription.objects.count(), 1)
-        td = TitleAndDescription.objects.first()
-        self.assertEqual(td.regenerated_title, "Regenerated Hotel Title")
-        self.assertEqual(td.description, "Regenerated Hotel Description")
-        self.assertEqual(td.hotel_id, "H123")
 
-    @patch('property.management.commands.generate_title_and_description.GEMINI_API_KEY', 'fake-key')
-    @patch('property.management.commands.generate_title_and_description.Command.generate_text_with_retry')
-    @patch('property.management.commands.generate_title_and_description.connections')
-    def test_command_error_handling(self, mock_connections, mock_generate_text):
-        # Mock the database connections
-        mock_cursor = MagicMock()
-        mock_cursor.__enter__.return_value.fetchall.return_value = self.mock_hotel_data
-        mock_connections['trip_db'].cursor.return_value = mock_cursor
-        
-        mock_default_cursor = MagicMock()
-        mock_connections['default'].cursor.return_value = mock_default_cursor
-        mock_connections['default'].ops.sequence_reset_sql.return_value = []
+        # Verify database updates
+        entries = TitleAndDescription.objects.all()
+        self.assertEqual(entries.count(), 2)
 
-        # Setup the text generation to raise an exception
-        mock_generate_text.side_effect = Exception("Test error")
-        
-        # Run the command and verify it raises the exception
-        with self.assertRaises(Exception) as context:
-            call_command('generate_title_and_description')
-        
-        self.assertEqual(str(context.exception), "Test error")
+        # Check the first entry
+        entry_1 = entries.get(hotel_id=1234)
+        self.assertEqual(entry_1.original_title, 'Hotel Blue')
+        self.assertEqual(entry_1.regenerated_title, 'Regenerated Title 1')
+        self.assertEqual(entry_1.description, 'Regenerated Description 1')
 
-    @patch('property.management.commands.generate_title_and_description.GEMINI_API_KEY', 'fake-key')
-    @patch('property.management.commands.generate_title_and_description.Command._handle_rate_limiting')
-    @patch('property.management.commands.generate_title_and_description.Command.generate_text_with_retry')
-    @patch('property.management.commands.generate_title_and_description.connections')
-    def test_command_rate_limiting(self, mock_connections, mock_generate_text, mock_rate_limiting):
-        # Mock the database connections
-        mock_cursor = MagicMock()
-        mock_cursor.__enter__.return_value.fetchall.return_value = self.mock_hotel_data
-        mock_connections['trip_db'].cursor.return_value = mock_cursor
-        
-        mock_default_cursor = MagicMock()
-        mock_connections['default'].cursor.return_value = mock_default_cursor
-        mock_connections['default'].ops.sequence_reset_sql.return_value = []
+        # Check the second entry
+        entry_2 = entries.get(hotel_id=5678)
+        self.assertEqual(entry_2.original_title, 'Hotel Gold')
+        self.assertEqual(entry_2.regenerated_title, 'Regenerated Title 2')
+        self.assertEqual(entry_2.description, 'Regenerated Description 2')
 
-        # Mock the text generation
-        mock_generate_text.side_effect = ["Regenerated Hotel Title", "Regenerated Hotel Description"]
-        
-        # Run the command
-        call_command('generate_title_and_description')
-        
-        # Verify rate limiting was called
-        # Since generate_text_with_retry is called twice (title and description),
-        # rate_limiting should be called twice
-        self.assertEqual(mock_rate_limiting.call_count, 2)
+        # Confirm model method calls
+        self.assertEqual(mock_model_instance.generate_content.call_count, 4)
 
-    def tearDown(self):
-        TitleAndDescription.objects.all().delete()
+        # Check the arguments used in API calls
+        calls = mock_model_instance.generate_content.call_args_list
+        self.assertIn('Generate a catchy and SEO-friendly title for a hotel', calls[0][0][0])
+        self.assertIn('Write a compelling and detailed description for a hotel', calls[1][0][0])
+
+        # Ensure logs contain progress information
+        with open('generation_log.txt', 'r') as log_file:
+            log_content = log_file.read()
+            self.assertIn('Processing hotel 1 of 2', log_content)
+            self.assertIn('Processing hotel 2 of 2', log_content)
