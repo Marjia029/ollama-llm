@@ -65,4 +65,5 @@ settings_local.py
 *.db
 ollamaproject/ollama/
 ollamaproject/generation_log.txt
+ollamaproject/summary_generation_log.txt
 

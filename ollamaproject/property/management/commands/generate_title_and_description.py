@@ -1,6 +1,8 @@
 import google.generativeai as genai
 from django.core.management.base import BaseCommand
+from django.core.management.color import no_style
 from django.db import connections
+from django.db import connection
 from time import sleep
 from django.core.management import CommandError
 from property.models import TitleAndDescription
@@ -83,9 +85,16 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         try:
-            with connections['default'].cursor() as cursor:
-                cursor.execute('TRUNCATE TABLE property_titleanddescription RESTART IDENTITY CASCADE;')
+            # with connections['default'].cursor() as cursor:
+            #     cursor.execute('TRUNCATE TABLE property_titleanddescription RESTART IDENTITY CASCADE;')
+            TitleAndDescription.objects.all().delete()
             
+            # Reset the primary key sequence for the Summary model
+            sequence_sql = connection.ops.sequence_reset_sql(no_style(), [TitleAndDescription])
+            with connection.cursor() as cursor:
+                for sql in sequence_sql:
+                    cursor.execute(sql)
+
             self.stdout.write(self.style.SUCCESS('Successfully truncated the table and reset IDs.'))
 
             with connections['trip_db'].cursor() as cursor:

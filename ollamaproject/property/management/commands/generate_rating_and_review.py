@@ -1,20 +1,22 @@
 import google.generativeai as genai
 from django.core.management.base import BaseCommand
+from django.core.management.color import no_style
 from django.db import connections, connection
 from time import sleep
 import time
 from django.core.management import CommandError
 from typing import Optional, Tuple, Any
 from property.models import RatingAndReview
+from config import GEMINI_API_KEY
 
 class Command(BaseCommand):
     help = 'Fetch hotel data from trip_db and use Google Gemini API for generating hypothetical ratings and reviews'
     
-    API_KEY = "AIzaSyBsiGjUOf5qbyylbqiYDokWhrGAlqpz7cw"
+    # API_KEY = "AIzaSyBsiGjUOf5qbyylbqiYDokWhrGAlqpz7cw"
     MAX_RETRIES = 3
-    RETRY_DELAY = 60
+    RETRY_DELAY = 30
     BATCH_SIZE = 5
-    BATCH_DELAY = 10
+    BATCH_DELAY = 5
 
     # Prompt templates
     RATING_PROMPT_TEMPLATE = (
@@ -163,10 +165,20 @@ class Command(BaseCommand):
     def truncate_ratings_table(self) -> None:
         """Truncate the ratings and reviews table and reset the ID sequence"""
         try:
+            # with connection.cursor() as cursor:
+            #     cursor.execute("""
+            #         TRUNCATE TABLE property_ratingandreview RESTART IDENTITY CASCADE;
+            #     """)
+
+            RatingAndReview.objects.all().delete()
+
+            # Reset the primary key sequence for the Summary model
+            sequence_sql = connection.ops.sequence_reset_sql(no_style(), [RatingAndReview])
             with connection.cursor() as cursor:
-                cursor.execute("""
-                    TRUNCATE TABLE property_ratingandreview RESTART IDENTITY CASCADE;
-                """)
+                for sql in sequence_sql:
+                    cursor.execute(sql)
+
+
             self.stdout.write(self.style.SUCCESS(
                 "Successfully truncated property_ratingandreview table and reset ID sequence."
             ))
@@ -176,14 +188,14 @@ class Command(BaseCommand):
     def save_to_database(self, hotel_id: str, rating: float, review: str) -> None:
         """Save the generated rating and review to the database"""
         try:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO property_ratingandreview (hotel_id, rating, review)
-                    VALUES (%s, %s, %s);
-                    """,
-                    [hotel_id, rating, review]
-                )
+            # Create or update the RatingAndReview entry
+            RatingAndReview.objects.update_or_create(
+                hotel_id=hotel_id,  # Assuming hotel_id is unique
+                defaults={
+                    'rating': rating,
+                    'review': review,
+                }
+            )
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error saving to database: {str(e)}"))
 
@@ -193,7 +205,7 @@ class Command(BaseCommand):
             self.truncate_ratings_table()
 
             # Initialize the model
-            model = self.setup_model(self.API_KEY)
+            model = self.setup_model(GEMINI_API_KEY)
 
             # Fetch hotel data
             with connections['trip_db'].cursor() as cursor:
