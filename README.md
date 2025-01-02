@@ -78,10 +78,13 @@ ollama-llm/
 
 7. **Make Make the Necessary Migrations**
 
-    Navigate to Django bash and run commands for the migrations
+    Navigate to Django bash
 
     ```bash
     docker-compose exec django bash
+    ```
+    Now run commands for the migrations
+    ```bash
     python manage.py makemigrations #or
     python manage.py makemigrations property
     python manage.py migrate
