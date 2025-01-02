@@ -1,4 +1,4 @@
-# 🛠️ Django CLI Application with Ollama Integration
+# 🛠️ Django CLI Application with LLM Integration
 
 This project implements a Django CLI tool designed to rewrite property information, generate summaries, and provide ratings and reviews using the Google Generative AI LLM model Gemini. It also integrates Docker for environment setup and PostgreSQL as the database.
 
